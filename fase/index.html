@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Fase no Neon Pong</title>
+<style>
+  :root{--bg:#05050f;--cy:#00e5ff;--pk:#ff2e87;--yl:#ffcd28;--tx:#e8e8f0;--dim:#9aa0c0}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--tx);
+    background:radial-gradient(circle at 50% 0%,#0b2a3a 0,var(--bg) 60%),var(--bg)}
+  main{width:100%;max-width:440px;text-align:center}
+  h1{margin:0 0 4px;font-size:34px;letter-spacing:2px;color:var(--cy);text-shadow:0 0 18px rgba(0,229,255,.55)}
+  h1 span{color:var(--pk);text-shadow:0 0 18px rgba(255,46,135,.55)}
+  .sub{color:var(--dim);margin:0 0 22px}
+  .card{background:#0d0d22;border:2px solid var(--yl);border-radius:22px;padding:20px;margin-bottom:18px;
+    box-shadow:0 0 24px rgba(255,205,40,.18)}
+  .nome{font-size:26px;font-weight:700;margin:0 0 6px}
+  .code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;color:var(--yl);word-break:break-all;margin:10px 0 0}
+  button,a.btn{display:block;width:100%;padding:16px;margin:0 0 12px;border-radius:16px;border:2px solid var(--cy);
+    background:#07313b;color:#fff;font-size:19px;font-weight:700;text-decoration:none;cursor:pointer}
+  button.main{background:var(--cy);color:#02141a}
+  button.sec,a.sec{background:transparent;border-color:#5b6090;color:var(--tx);font-weight:600}
+  .msg{min-height:22px;color:#59ff8c;font-size:15px;margin:0 0 6px}
+  .nota{color:var(--dim);font-size:13px;line-height:1.5;margin-top:14px}
+  .erro{border-color:var(--pk);color:var(--pk)}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>NEON <span>PONG</span></h1>
+  <p class="sub">Um amigo mandou uma fase para você</p>
+
+  <section id="ok" class="card" hidden>
+    <p class="nome" id="nome">Fase</p>
+    <p class="code" id="codigo"></p>
+  </section>
+  <section id="sem" class="card erro" hidden>
+    <p class="nome">Link sem fase</p>
+    <p class="sub" style="margin:0">Peça ao seu amigo para compartilhar a fase de novo.</p>
+  </section>
+
+  <p class="msg" id="msg" role="status"></p>
+  <button class="main" id="abrir">ABRIR NO JOGO</button>
+  <button class="sec" id="copiar">COPIAR CÓDIGO</button>
+  <a class="btn sec" id="loja" href="https://play.google.com/store/apps/details?id=com.techofstrites.neonpong">BAIXAR NO GOOGLE PLAY</a>
+
+  <p class="nota">
+    <b>Como funciona:</b> ao tocar em &ldquo;Abrir no jogo&rdquo;, o código da fase é copiado e o jogo abre.
+    Lá, ele pergunta se você quer importar a fase, que fica em <b>Strites Blocos &rarr; Jogar</b>.<br>
+    Se o jogo não abrir, abra-o manualmente: ele oferece a importação ao iniciar.
+  </p>
+</main>
+<script>
+(function(){
+  var PACOTE = "com.techofstrites.neonpong";
+  var LOJA = "https://play.google.com/store/apps/details?id=" + PACOTE;
+  var codigo = decodeURIComponent((location.hash || "").slice(1)).replace(/[^0-9A-Za-z-]/g, "");
+  var nome = (new URLSearchParams(location.search).get("n") || "").replace(/["|]/g, " ").trim().slice(0, 16);
+  var valido = /^NP1(-[0-9A-Za-z]{1,4})+$/i.test(codigo);
+  var $ = function(id){ return document.getElementById(id); };
+  var msg = $("msg");
+
+  if (valido) {
+    codigo = codigo.toUpperCase();
+    $("nome").textContent = nome ? nome : "Fase recebida";
+    $("codigo").textContent = codigo;
+    $("ok").hidden = false;
+  } else {
+    $("sem").hidden = false;
+    $("abrir").hidden = true;
+    $("copiar").hidden = true;
+  }
+
+  // o jogo procura por: fase "Nome" NP1-XXXX-...
+  function texto(){ return 'Fase "' + (nome || "Recebida") + '" ' + codigo; }
+
+  function copiar(){
+    return new Promise(function(ok){
+      function antigo(){
+        try {
+          var t = document.createElement("textarea");
+          t.value = texto(); t.style.position = "fixed"; t.style.opacity = "0";
+          document.body.appendChild(t); t.select();
+          var r = document.execCommand("copy"); document.body.removeChild(t); ok(r);
+        } catch (e) { ok(false); }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto()).then(function(){ ok(true); }, antigo);
+      } else { antigo(); }
+    });
+  }
+
+  $("copiar").addEventListener("click", function(){
+    copiar().then(function(r){ msg.textContent = r ? "Código copiado! Abra o jogo." : "Não consegui copiar. Selecione o código acima."; });
+  });
+
+  $("abrir").addEventListener("click", function(){
+    copiar().then(function(){
+      var android = /android/i.test(navigator.userAgent);
+      if (android) {
+        // abre o app pelo pacote; se não estiver instalado, o Chrome vai para a página da loja
+        location.href = "intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;" +
+          "package=" + PACOTE + ";S.browser_fallback_url=" + encodeURIComponent(LOJA) + ";end";
+      } else {
+        msg.textContent = "Código copiado! Abra o Neon Pong no seu Android.";
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
